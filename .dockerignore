@@ -1,0 +1,19 @@
+# 镜像构建上下文排除（保证镜像内不含真实配置/凭据/运行产物）
+.git
+__pycache__
+*.pyc
+*.bak
+.env
+
+# 真实鉴权配置与日志——绝不打入镜像
+config/config.json
+config/task_run_log.json
+config/cron_config.json
+
+# 运行产物
+output/
+
+# 文档与编排（不必要进镜像）
+README.md
+docker-compose.yml
+docker-compose.yml.bak

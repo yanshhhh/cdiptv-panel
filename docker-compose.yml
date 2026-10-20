@@ -1,0 +1,29 @@
+# CDIPTV Panel — 成都电信 IPTV 管理面板
+#
+# 快速开始：
+#   1) mkdir -p ./data ./output
+#   2) cp .env.example .env  并修改 PANEL_USER / PANEL_PASS
+#   3) docker compose up -d
+#
+# 说明：脚本与网页模板已内置镜像，升级自动更新；仅挂载 data（配置）与 output（M3U）持久化。
+# 下方卷路径使用相对路径（./data、./output），会在本 compose 所在目录下创建；
+# 若想放到指定位置，改成你自己的绝对路径即可，例如 /your/path/data:/app/data。
+
+services:
+  cdiptv-panel:
+    image: yanshhhh/cdiptv-panel:latest
+    container_name: cdiptv-panel
+    # IPTV 抓取需访问电信专网组播/网关，host 网络模式最简单可靠
+    network_mode: host
+    environment:
+      # 面板登录口令（从 .env 读取，未设置会启动报错）
+      - PANEL_USER=${PANEL_USER:?请在 .env 中设置 PANEL_USER（登录账号）}
+      - PANEL_PASS=${PANEL_PASS:?请在 .env 中设置 PANEL_PASS（登录密码）}
+      - CDIPTV_PANEL_DATA_DIR=/app/data
+      - TZ=Asia/Shanghai
+    volumes:
+      # 配置数据（config.json / 定时任务 / 任务日志）——持久化，网页改动重启不丢
+      - ./data:/app/data
+      # 生成的 M3U 文件，供播放器引用
+      - ./output:/app/output
+    restart: always

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}输出文件管理 | CDIPTV Panel{% endblock %}
+{% block page_title %}<i class="fa fa-file-text-o"></i> 输出文件管理{% endblock %}
+{% block page_desc %}浏览、上传、删除生成的 M3U 播放列表，复制直链供播放器使用{% endblock %}
+
+{% block style %}
+.upload-wrap{margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.up-dir-wrap{margin-bottom:12px}
+.file-row{display:grid;grid-template-columns:24px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)}
+.file-row:last-child{border-bottom:none}
+.file-row .fname{color:var(--primary);font-size:13px;word-break:break-all}
+.file-row .fname:hover{text-decoration:underline}
+.file-row .ficon{color:var(--muted);text-align:center}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:760px){
+    .file-row{grid-template-columns:20px 1fr;gap:8px}
+    .btn-group{grid-column:2;justify-content:flex-end}
+}
+{% endblock %}
+{% block body %}
+<div class="card">
+<div class="upload-wrap">
+<form method="post" action="/output/upload" enctype="multipart/form-data">
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+<input type="file" name="m3ufile" accept=".m3u">
+<button type="submit" class="btn btn-primary"><i class="fa fa-upload"></i> 上传M3U文件</button>
+</div>
+</form>
+</div>
+{% if up_link %}
+<div class="up-dir-wrap">
+<a href="{{ up_link }}" class="btn btn-ghost btn-sm"><i class="fa fa-arrow-up"></i> 返回上一级</a>
+</div>
+{% endif %}
+{% for item in items %}
+<div class="file-row">
+    <span class="ficon">{% if item.is_dir %}<i class="fa fa-folder"></i>{% else %}<i class="fa fa-file-text-o"></i>{% endif %}</span>
+    <span><a class="fname" href="{{ item.link }}" {% if not item.is_dir %}target="_blank"{% endif %}>{{ item.name }}</a></span>
+    <div class="btn-group">
+        {% if item.is_m3u %}
+        <button class="btn btn-primary btn-sm" type="button" data-fullpath="{{ item.relpath }}"><i class="fa fa-link"></i> 复制播放直链</button>
+        <button class="btn btn-danger btn-sm" type="button" data-fullpath="{{ item.relpath }}"><i class="fa fa-trash"></i> 删除</button>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    function copyText(text){
+        if(navigator && navigator.clipboard && navigator.clipboard.writeText){
+            return navigator.clipboard.writeText(text);
+        }
+        return new Promise(function(resolve, reject){
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'absolute';
+            ta.style.left = '-9999px';
+            document.body.appendChild(ta);
+            ta.select();
+            try{ document.execCommand('copy'); resolve(true); }catch(err){ reject(err); }
+            document.body.removeChild(ta);
+        });
+    }
+    document.querySelectorAll('.btn-group .btn[data-fullpath]').forEach(function(btn){
+        var fullpath = btn.dataset.fullpath || "";
+        btn.addEventListener('click', function(){
+            if(btn.classList.contains('btn-danger')){
+                if(!confirm("确定要删除文件：" + fullpath + "？删除后不可恢复！")) return;
+                fetch("/output/delete", {
+                    method:"POST",
+                    body: JSON.stringify({"fullpath": fullpath}),
+                    headers: {"Content-Type":"application/json"}
+                }).then(function(r){ return r.json(); }).then(function(res){
+                    if(res.ok){ alert("✅已删除"); window.location.reload(); }
+                    else{ alert("❌删除失败：" + res.msg); }
+                }).catch(function(){ alert("❌网络异常"); });
+            }else{
+                var fullUrl = window.location.origin + "/direct/m3u/" + fullpath;
+                copyText(fullUrl).then(function(){ alert("✅复制成功！播放直链：\n" + fullUrl); })
+                    .catch(function(){ alert("❌复制失败！请手动复制：\n" + fullUrl); });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

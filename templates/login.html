@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}登录 | CDIPTV Panel{% endblock %}
+{% block body_class %}login-page{% endblock %}
+{% block style %}
+.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}
+.login-wrap{width:100%;max-width:420px;background:var(--card);border-radius:20px;padding:32px 24px;box-shadow:0 10px 40px rgba(0,0,0,.25);border:1px solid var(--border)}
+.login-header{text-align:center;margin-bottom:24px}
+.login-header img.logo{height:56px;margin-bottom:8px}
+.login-header h2{font-size:26px;margin-bottom:8px}
+.login-header p{color:var(--muted)}
+.form-item{margin-bottom:18px}
+.form-item label{display:block;margin-bottom:8px;color:var(--muted);font-size:14px}
+.form-item input{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:15px;outline:none}
+.submit-btn{width:100%;padding:14px;border-radius:12px;border:none;background:var(--primary);color:#fff;font-size:16px;cursor:pointer}
+.err-tip{color:#ef4444;text-align:center;margin-top:16px}
+{% endblock %}
+{% block content %}
+<div class="login-wrap">
+    <div class="login-header">
+        <img class="logo" src="/static/logo.png" alt="CDIPTV Panel">
+        <h2>CDIPTV Panel</h2>
+        <p>成都IPTV频道抓取控制面板</p>
+    </div>
+    <form method="POST">
+        <div class="form-item">
+            <label>用户名</label>
+            <input name="user" autocomplete="off">
+        </div>
+        <div class="form-item">
+            <label>登录密码</label>
+            <input name="pwd" type="password">
+        </div>
+        <button class="submit-btn" type="submit">登录进入面板</button>
+        {% if err_msg %}
+        <div class="err-tip">{{ err_msg }}</div>
+        {% endif %}
+    </form>
+</div>
+{% endblock %}

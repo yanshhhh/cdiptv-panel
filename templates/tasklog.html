@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}任务执行日志 | CDIPTV Panel{% endblock %}
+{% block page_title %}<i class="fa fa-list-alt"></i> IPTV 抓取任务执行日志{% endblock %}
+{% block page_desc %}查看定时与手动抓取任务的执行状态与完整输出，最多保留 50 条记录{% endblock %}
+
+{% block style %}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border:1px solid var(--border);padding:12px 14px;text-align:center}
+th{background:rgba(var(--border-rgb),.22)}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:bold}
+.badge-success{background:rgba(var(--success),.18);color:var(--success);border:1px solid var(--success)}
+.badge-fail{background:rgba(var(--danger),.18);color:var(--danger);border:1px solid var(--danger)}
+.badge-manual{background:rgba(var(--primary),.18);color:var(--primary);border:1px solid var(--primary)}
+.badge-cron{background:rgba(var(--muted),.22);color:var(--muted);border:1px solid var(--muted)}
+.oper-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.modal-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:900px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:16px;font-weight:bold}
+.modal-close{background:var(--danger);color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer}
+.modal-body{padding:14px 18px;flex:1;overflow:auto}
+.modal-pre{font-size:13px;line-height:1.6;color:#cbd5e1;background:#020617;padding:14px;border-radius:12px;border:1px solid #334155;overflow:auto}
+@media (max-width:520px){
+    th,td{padding:9px 7px}
+    .modal-head,.modal-body{padding:10px 12px}
+}
+@media (max-width:760px){
+    .table-wrap{overflow:visible}
+    table,thead,tbody,tr,th,td{display:block;width:100%}
+    thead{display:none}
+    tr{border:1px solid var(--border);border-radius:12px;margin-bottom:10px;padding:12px 14px}
+    td{border:none;border-bottom:1px dashed var(--border);padding:8px 0;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px}
+    td:last-child{border-bottom:0}
+    td:before{content:attr(data-label);color:var(--muted);font-weight:600;font-size:12px;flex:none}
+    td .btn{white-space:nowrap}
+}
+{% endblock %}
+{% block body %}
+<div class="card">
+<div class="oper-row">
+    <button class="btn btn-danger" id="btnClearLog"><i class="fa fa-trash"></i> 清空全部日志</button>
+    <span style="color:var(--muted);align-self:center">最多保存50条记录，旧记录自动丢弃</span>
+</div>
+<div class="table-wrap">
+{% if log_list|length == 0 %}
+<p style="color:var(--muted);text-align:center;padding:32px">暂无任务执行记录</p>
+{% else %}
+<table>
+<thead>
+<tr><th>执行时间</th><th>触发来源</th><th>执行状态</th><th>操作</th></tr>
+</thead>
+<tbody>
+{% for item in log_list %}
+<tr>
+<td data-label="执行时间">{{ item.time_str }}</td>
+<td data-label="触发来源">
+{% if item.source == 'manual' %}<span class="badge badge-manual">👤手动</span>
+{% else %}<span class="badge badge-cron">🕒定时</span>{% endif %}
+</td>
+<td data-label="执行状态">
+{% if item.status == 'success' %}<span class="badge badge-success">✅成功</span>
+{% else %}<span class="badge badge-fail">❌失败</span>{% endif %}
+</td>
+<td data-label="操作"><button class="btn btn-primary btn-sm" data-log="{{ item.msg|e }}"><i class="fa fa-file-text-o"></i> 查看完整日志</button></td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+{% endif %}
+</div>
+</div>
+<div class="modal-mask" id="modalMask">
+    <div class="modal-box">
+        <div class="modal-head">
+            <div class="modal-title">完整任务输出日志</div>
+            <button class="modal-close" id="modalClose">关闭</button>
+        </div>
+        <div class="modal-body"><pre class="modal-pre" id="modalContent"></pre></div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    var modalMask = document.getElementById('modalMask');
+    var modalClose = document.getElementById('modalClose');
+    var modalContent = document.getElementById('modalContent');
+    function openModal(text){
+        modalContent.innerHTML = renderLog(text);
+        modalMask.style.display = 'flex';
+    }
+    function closeModal(){ modalMask.style.display = 'none'; }
+    modalClose.addEventListener('click', closeModal);
+    modalMask.addEventListener('click', function(e){ if(e.target === modalMask) closeModal(); });
+    document.querySelectorAll('.btn[data-log]').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            openModal(this.getAttribute('data-log'));
+        });
+    });
+    var btnClear = document.getElementById("btnClearLog");
+    if(btnClear){
+        btnClear.addEventListener('click', function(){
+            if(!confirm("确定要清空全部任务执行日志吗？不可恢复！")) return;
+            fetch("/logtask/clear", {method:"POST"})
+            .then(function(r){ return r.json(); })
+            .then(function(res){
+                if(res.ok){ alert("✅日志已清空"); window.location.reload(); }
+                else{ alert("❌失败：" + res.msg); }
+            }).catch(function(){ alert("网络异常"); });
+        });
+    }
+});
+</script>
+{% endblock %}

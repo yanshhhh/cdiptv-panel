@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="/static/logo.png">
+<title>{% block title %}CDIPTV Panel{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+<style>
+/* ===================== 公共主题 ===================== */
+:root{
+    --bg:#0b1220;--card:#111a2b;--card-rgb:17,26,43;
+    --sidebar:#0e1626;--text:#e2e8f0;--muted:#8fa3bf;
+    --primary:#38bdf8;--success:#22c55e;--danger:#ef4444;
+    --orange:#f97316;--purple:#a855f7;
+    --border:#1e2b40;--border-rgb:30,43,64;
+}
+[data-theme="light"]{
+    --bg:#f1f5f9;--card:#ffffff;--card-rgb:255,255,255;
+    --sidebar:#ffffff;--text:#1e293b;--muted:#64748b;
+    --primary:#0284c7;--success:#16a34a;--danger:#dc2626;
+    --orange:#ea580c;
+    --border:#e2e8f0;--border-rgb:226,232,240;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Consolas;background:var(--bg);color:var(--text);transition:background .35s ease,color .35s ease}
+a{text-decoration:none}
+
+/* ===================== 两栏布局（桌面） ===================== */
+.layout{display:flex;min-height:100vh}
+.sidebar{width:224px;flex:none;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:18px 14px;position:sticky;top:0;height:100vh}
+.sb-logo{display:flex;align-items:center;gap:11px;padding:4px 8px;margin-bottom:22px}
+.sb-logo img{height:38px;width:38px;border-radius:9px;object-fit:cover}
+.sb-logo b{font-size:16px;line-height:1.15;display:block}
+.sb-logo small{color:var(--muted);font-size:11px}
+.sb-nav{flex:1;display:flex;flex-direction:column;gap:4px;overflow:auto}
+.sb-nav a{display:flex;align-items:center;gap:11px;padding:11px 12px;border-radius:10px;color:var(--muted);font-size:14px;transition:.15s}
+.sb-nav a:hover{background:rgba(var(--card-rgb),.55);color:var(--text)}
+.sb-nav a.active{background:var(--primary);color:#fff}
+.sb-nav a i{width:18px;text-align:center;flex:none}
+.sb-foot{border-top:1px solid var(--border);padding-top:12px;margin-top:12px;font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.sb-foot .theme-toggle{padding:8px 10px;border-radius:9px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:13px;text-align:left;transition:.15s}
+.sb-foot .theme-toggle:hover{color:var(--text)}
+.sb-foot .ver{font-family:Consolas,monospace}
+.sb-foot a{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;color:var(--danger);background:rgba(var(--danger),.12);border:1px solid rgba(var(--danger),.35)}
+.sb-foot a:hover{filter:brightness(1.15)}
+.main{flex:1;padding:22px 28px;min-width:0}
+.page-wrap{max-width:1120px;margin:0 auto}
+
+/* ===================== 主区头部 ===================== */
+.main-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;margin-bottom:22px}
+.main-head h1{font-size:25px;display:flex;align-items:center;justify-content:center;gap:10px}
+.main-head p{color:var(--muted);font-size:14px}
+.head-actions{display:flex;align-items:center;gap:10px;margin-top:2px}
+.head-actions .theme-toggle{display:none;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:14px;transition:.15s}
+.head-actions .theme-toggle:hover{color:var(--text)}
+.ver{font-size:12px;color:var(--muted);border:1px solid var(--border);border-radius:8px;padding:2px 9px;vertical-align:middle;font-family:Consolas,monospace;background:rgba(var(--card-rgb),.5)}
+
+/* ===================== 统计卡片 ===================== */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:14px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px 20px;box-shadow:0 6px 20px rgba(0,0,0,.12);transition:.2s;text-align:center}
+.stat-card:hover{transform:translateY(-2px)}
+.stat-card .ic{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:19px;margin:0 auto 12px;background:rgba(var(--primary),.15);color:var(--primary)}
+.stat-card .num{font-size:28px;font-weight:700;line-height:1;margin-bottom:6px}
+.stat-card .lbl{color:var(--muted);font-size:13px}
+
+/* ===================== 卡片 ===================== */
+.card{background:var(--card);border-radius:16px;padding:20px;margin-bottom:18px;border:1px solid var(--border);box-shadow:0 6px 20px rgba(0,0,0,.12)}
+
+/* ===================== 全局表单控件（全站统一） ===================== */
+input,select,textarea,button{font-family:inherit}
+input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=reset]):not([type=hidden]):not([type=file]),select,textarea{
+    width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(59,130,246,.40);
+    background:rgba(59,130,246,.16);color:var(--text);font-size:13px;box-sizing:border-box;transition:.15s
+}
+input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]):not([type=reset]):not([type=hidden]):not([type=file]):focus,select:focus,textarea:focus{outline:none;border-color:rgb(59,130,246);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+input[type=file]{padding:7px 10px;cursor:pointer;border-radius:12px;border:1px solid rgba(59,130,246,.40);background:rgba(59,130,246,.16);color:var(--text)}
+input[type=checkbox],input[type=radio]{width:auto;padding:0;accent-color:var(--primary)}
+label{color:var(--muted)}
+
+/* ===================== 全局统一按钮 ===================== */
+.btn{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:10px;padding:10px 16px;font-size:13px;cursor:pointer;font-weight:600;transition:.2s;color:#fff;text-decoration:none}
+.btn:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,var(--primary),#6366f1)}
+.btn-danger{background:var(--danger)}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-sm{padding:6px 12px;font-size:12px;border-radius:8px}
+
+/* ===================== 移动端顶部标题栏 ===================== */
+.mobile-head{display:none}
+
+/* ===================== 移动端底部导航 ===================== */
+.mobile-tabbar{display:none}
+
+/* ===================== 日志结构化美化（首页 / 历史日志通用） ===================== */
+.lg-row{display:flex;align-items:flex-start;gap:8px;padding:4px 0;font-size:13px;line-height:1.6;color:#cbd5e1;flex-wrap:wrap}
+.lg-row i{width:16px;text-align:center;margin-top:2px;flex:none;font-size:14px}
+.lg-ok i{color:#22c55e}
+.lg-file i{color:#38bdf8}
+.lg-session i{color:#818cf8}
+.lg-warn i{color:#f59e0b}
+.lg-mon{color:#7dd3fc;font-family:Consolas,monospace;word-break:break-all}
+.lg-num{color:#fbbf24;font-family:Consolas,monospace;font-size:14px;font-weight:bold}
+.lg-stage{display:flex;align-items:center;gap:12px;margin:12px 0 8px}
+.lg-stage .lg-stg{font-weight:700;color:#e2e8f0;letter-spacing:.5px;white-space:nowrap}
+.lg-stage .lg-line{flex:1;height:1px;background:#334155}
+.lg-stage .lg-time{color:#64748b;font-family:Consolas,monospace;font-size:12px;white-space:nowrap}
+.lg-done .lg-stg{color:#22c55e}
+.lg-empty{color:#64748b;text-align:center;padding:60px 0;font-size:14px}
+#log{background:#020617;border:1px solid #334155;border-radius:12px;padding:14px;min-height:260px;overflow:auto;font-size:13px;line-height:1.6;color:#cbd5e1}
+
+@media (max-width:760px){
+    .layout{display:block}
+    .sidebar{display:none}
+    .mobile-head{display:flex;position:sticky;top:0;z-index:99;background:var(--card);border-bottom:1px solid var(--border);align-items:center;justify-content:space-between;padding:9px 14px;box-shadow:0 2px 10px rgba(0,0,0,.08)}
+    .mh-logo{display:flex;align-items:center;gap:9px;min-width:0}
+    .mh-logo img{height:30px;width:30px;border-radius:7px;object-fit:cover;flex:none}
+    .mh-logo b{font-size:15px;white-space:nowrap}
+    .mh-logo .ver{margin-left:5px;font-size:11px;border:1px solid var(--border);border-radius:6px;padding:1px 7px;color:var(--muted);white-space:nowrap}
+    .mh-actions{display:flex;align-items:center;gap:10px}
+    .mh-actions .theme-toggle{width:34px;height:34px;border-radius:9px;border:1px solid var(--border);background:var(--bg);color:var(--muted);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:.15s}
+    .mh-actions a{width:34px;height:34px;border-radius:9px;border:1px solid rgba(var(--danger),.5);background:rgba(var(--danger),.12);color:var(--danger);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:.15s}
+    .mh-actions a:hover,.mh-actions .theme-toggle:hover{filter:brightness(1.15)}
+    .mh-actions .theme-toggle span{display:none}
+    .main{padding:14px 14px 84px}
+    .main-head h1{font-size:22px}
+    .stat-grid{grid-template-columns:repeat(2,1fr);gap:11px}
+    .stat-card{padding:14px 16px}
+    .stat-card .ic{width:36px;height:36px;font-size:16px;margin-bottom:9px}
+    .stat-card .num{font-size:24px}
+    /* 底部 tab bar */
+    .mobile-tabbar{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:100;box-shadow:0 -4px 20px rgba(0,0,0,.18)}
+    .mobile-tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;font-size:11px;color:var(--muted)}
+    .mobile-tabbar a i{font-size:19px}
+    .mobile-tabbar a.active{color:var(--primary)}
+    .mobile-tabbar a.active i{transform:translateY(-1px)}
+}
+{% block style %}{% endblock %}
+</style>
+</head>
+<body data-theme="dark" class="{% block body_class %}{% endblock %}">
+<script>
+/* 主题：优先用户手动选择，否则跟随系统深浅色（body 渲染前设置，避免闪烁） */
+(function(){
+    function sysMode(){
+        if(window.matchMedia){
+            if(window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+            if(window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+        }
+        return 'dark';
+    }
+    try{ document.body.setAttribute('data-theme', sysMode()); }
+    catch(e){ document.body.setAttribute('data-theme','dark'); }
+})();
+</script>
+{% block content %}
+<div class="mobile-head">
+    <div class="mh-logo">
+        <img class="logo" src="/static/logo.png" alt="CDIPTV Panel">
+        <b>CDIPTV Panel</b><span class="ver">v{{ panel_version }}</span>
+    </div>
+    <div class="mh-actions">
+        <button class="theme-toggle" id="themeBtnMHead"><i class="fa fa-sun-o"></i></button>
+        <a href="/logout" title="退出登录"><i class="fa fa-sign-out"></i></a>
+    </div>
+</div>
+<div class="layout">
+    <aside class="sidebar">
+        <div class="sb-logo">
+            <img class="logo" src="/static/logo.png" alt="CDIPTV Panel">
+            <div><b>CDIPTV Panel</b><small>成都IPTV抓取面板</small></div>
+        </div>
+        <nav class="sb-nav">
+            <a href="/" class="{{ 'active' if request.path == '/' }}"><i class="fa fa-tachometer"></i><span>控制面板</span></a>
+            <a href="/output" class="{{ 'active' if request.path.startswith('/output') }}"><i class="fa fa-folder-open"></i><span>输出文件管理</span></a>
+            <a href="/editor" class="{{ 'active' if request.path == '/editor' }}"><i class="fa fa-cog"></i><span>配置中心</span></a>
+            <a href="/logtask" class="{{ 'active' if request.path == '/logtask' }}"><i class="fa fa-list-alt"></i><span>执行日志</span></a>
+        </nav>
+        <div class="sb-foot">
+            <button class="theme-toggle" id="themeBtnSide"><i class="fa fa-sun-o"></i><span>&nbsp; 切换主题</span></button>
+            <span class="ver">v{{ panel_version }}</span>
+            <a href="/logout"><i class="fa fa-sign-out"></i><span>&nbsp; 退出登录</span></a>
+        </div>
+    </aside>
+    <main class="main">
+        <div class="page-wrap">
+        <div class="main-head">
+            <div>
+                <h1>{% block page_title %}{% endblock %}</h1>
+                <p>{% block page_desc %}{% endblock %}</p>
+            </div>
+            <div class="head-actions">
+                <button class="theme-toggle" id="themeBtnMain"><i class="fa fa-sun-o"></i></button>
+                {% block top_right %}{% endblock %}
+            </div>
+        </div>
+        {% block body %}{% endblock %}
+        </div>
+    </main>
+</div>
+<nav class="mobile-tabbar">
+    <a href="/" class="{{ 'active' if request.path == '/' }}"><i class="fa fa-tachometer"></i><span>控制面板</span></a>
+    <a href="/output" class="{{ 'active' if request.path.startswith('/output') }}"><i class="fa fa-folder-open"></i><span>输出文件</span></a>
+    <a href="/editor" class="{{ 'active' if request.path == '/editor' }}"><i class="fa fa-cog"></i><span>配置中心</span></a>
+    <a href="/logtask" class="{{ 'active' if request.path == '/logtask' }}"><i class="fa fa-list-alt"></i><span>执行日志</span></a>
+</nav>
+{% endblock %}
+<script>
+/* ===================== 公共：主题切换 ===================== */
+document.addEventListener('DOMContentLoaded', function(){
+    function applyThemeDarkLight(mode){
+        document.body.setAttribute('data-theme', mode);
+        var icon = mode === 'light' ? 'fa-moon-o' : 'fa-sun-o';
+        document.querySelectorAll('.theme-toggle').forEach(function(btn){
+            btn.innerHTML = '<i class="fa ' + icon + '"></i><span>&nbsp; 切换主题</span>';
+        });
+    }
+    document.querySelectorAll('.theme-toggle').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            var now = document.body.getAttribute('data-theme');
+            applyThemeDarkLight(now === 'light' ? 'dark' : 'light');
+        });
+    });
+    function sysMode(){
+        if(window.matchMedia){
+            if(window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+            if(window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+        }
+        return 'dark';
+    }
+    applyThemeDarkLight(sysMode());
+    var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+    if(sysDark && sysDark.addEventListener){
+        sysDark.addEventListener('change', function(){ applyThemeDarkLight(sysDark.matches ? 'dark' : 'light'); });
+    }
+});
+/* ===================== 公共：日志解析美化 ===================== */
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderLog(raw){
+    var lines = String(raw==null?'':raw).split('\n');
+    var out = [];
+    for(var i=0;i<lines.length;i++){
+        var t = lines[i].trim();
+        if(t==='') continue;
+        if(/^=+.*=+$/.test(t) && t.replace(/=/g,'').trim()!==''){
+            var title = t.replace(/=+/g,'').trim();
+            var isDone = /执行完毕/.test(title);
+            var time = '';
+            var tm = title.match(/(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/);
+            if(tm){ time = tm[1]; title = title.replace(tm[1],'').trim(); }
+            out.push('<div class="lg-stage '+(isDone?'lg-done':'')+'"><span class="lg-line"></span><span class="lg-stg">'+esc(title)+'</span>'+(time?'<span class="lg-time">'+esc(time)+'</span>':'')+'<span class="lg-line"></span></div>');
+            continue;
+        }
+        var ms = t.match(/^\[session\]\s*当前Cookie:\s*(.+)$/);
+        if(ms){ out.push('<div class="lg-row lg-session"><i class="fa fa-key"></i><span>当前Cookie&nbsp; <b class="lg-mon">'+esc(ms[1])+'</b></span></div>'); continue; }
+        var mf = t.match(/^(M3U文件已生成)[：:]\s*(.+)$/);
+        if(mf){ out.push('<div class="lg-row lg-file"><i class="fa fa-file-text-o"></i><span>'+esc(mf[1])+'</span><b class="lg-mon">'+esc(mf[2])+'</b></div>'); continue; }
+        if(t.indexOf('✅')>=0){
+            out.push('<div class="lg-row lg-ok"><i class="fa fa-check-circle"></i><span>'+esc(t.replace(/✅/g,'').trim())+'</span></div>');
+            continue;
+        }
+        if(t.indexOf('⚠')>=0 || t.indexOf('警告')>=0){
+            out.push('<div class="lg-row lg-warn"><i class="fa fa-exclamation-triangle"></i><span>'+esc(t)+'</span></div>');
+            continue;
+        }
+        var mn = t.match(/^(.*?)([：:])\s*(\d+)(.*)$/);
+        if(mn){
+            out.push('<div class="lg-row"><span>'+esc(mn[1])+esc(mn[2])+'</span><b class="lg-num">'+esc(mn[3])+'</b><span>'+esc(mn[4])+'</span></div>');
+            continue;
+        }
+        out.push('<div class="lg-row"><span>'+esc(t)+'</span></div>');
+    }
+    return out.join('');
+}
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

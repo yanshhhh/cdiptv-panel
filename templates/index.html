@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}控制面板 | CDIPTV Panel{% endblock %}
+{% block page_title %}<i class="fa fa-tachometer"></i> 控制面板{% endblock %}
+{% block page_desc %}管理您的 IPTV 抓取任务、输出文件与配置{% endblock %}
+{% block style %}
+.action-btn{border:none;border-radius:12px;padding:13px 22px;font-size:15px;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:9px;transition:.2s;font-weight:600}
+.action-btn:hover{opacity:.88;transform:translateY(-1px)}
+.btn-run{background:linear-gradient(135deg,var(--primary),#6366f1);box-shadow:0 6px 18px rgba(56,189,248,.28)}
+.badge{display:inline-block;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:bold}
+.badge-success{background:rgba(var(--success),.16);color:var(--success);border:1px solid var(--success)}
+.badge-fail{background:rgba(var(--danger),.16);color:var(--danger);border:1px solid var(--danger)}
+.badge-manual{background:rgba(var(--primary),.16);color:var(--primary);border:1px solid var(--primary)}
+.badge-cron{background:rgba(var(--muted),.2);color:var(--muted);border:1px solid var(--muted)}
+.log-list{list-style:none}
+.log-list li{display:flex;align-items:center;gap:12px;padding:11px 6px;border-bottom:1px solid var(--border);flex-wrap:wrap;font-size:13px}
+.log-list li:last-child{border-bottom:0}
+.log-list .lt{color:var(--muted);font-family:Consolas,monospace;font-size:12px;width:150px;flex:none}
+.log-list .lact{margin-left:auto}
+.modal-mask{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.modal-box{background:var(--card);border:1px solid var(--border);border-radius:16px;width:100%;max-width:900px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.35)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:16px;font-weight:bold}
+.modal-close{background:var(--danger);color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer}
+.modal-body{padding:14px 18px;flex:1;overflow:auto}
+.modal-pre{font-size:13px;line-height:1.6;color:#cbd5e1;background:#020617;padding:14px;border-radius:12px;border:1px solid #334155;overflow:auto}
+@media (max-width:760px){
+    .log-list li{flex-wrap:wrap;gap:7px;padding:12px 2px}
+    .log-list .lt{width:auto;flex:1 1 100%}
+    .log-list .lact{margin-left:auto}
+}
+{% endblock %}
+{% block body %}
+<div class="stat-grid">
+  <div class="stat-card"><div class="ic"><i class="fa fa-television"></i></div><div class="num">{{ stats.total_channels }}</div><div class="lbl">总频道数</div></div>
+  <div class="stat-card"><div class="ic"><i class="fa fa-file-video-o"></i></div><div class="num">{{ stats.file_count }}</div><div class="lbl">输出 M3U 文件</div></div>
+  <div class="stat-card"><div class="ic"><i class="fa fa-check-circle"></i></div><div class="num">{{ stats.ok_count }}</div><div class="lbl">抓取成功次数</div></div>
+  <div class="stat-card"><div class="ic"><i class="fa fa-clock-o"></i></div><div class="num" style="font-size:19px;line-height:1.3">{{ stats.last_time }}</div><div class="lbl">最近抓取时间</div></div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+    <button class="action-btn btn-run" id="btnRun"><i class="fa fa-play"></i> 手动执行任务</button>
+    <span style="color:var(--muted);font-size:13px">点击开始抓取，输出实时显示在下方日志</span>
+  </div>
+  <div id="log"><div class="lg-empty"><i class="fa fa-terminal"></i> 等待点击「手动执行任务」查看日志</div></div>
+</div>
+
+<div class="card">
+  <div style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:14px;margin-bottom:8px"><i class="fa fa-history"></i> 最近任务记录</div>
+  {% if recent_logs %}
+  <ul class="log-list">
+    {% for it in recent_logs %}
+    <li>
+      <span class="lt">{{ it.time_str }}</span>
+      {% if it.source == 'manual' %}<span class="badge badge-manual">👤手动</span>{% else %}<span class="badge badge-cron">🕒定时</span>{% endif %}
+      {% if it.status == 'success' %}<span class="badge badge-success">✅成功</span>{% else %}<span class="badge badge-fail">❌失败</span>{% endif %}
+      <span class="lact"><button class="btn btn-primary btn-sm" data-log="{{ it.msg|e }}"><i class="fa fa-file-text-o"></i> 查看完整日志</button></span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="lg-empty">暂无任务记录</div>
+  {% endif %}
+</div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal-box">
+    <div class="modal-head"><div class="modal-title">完整任务输出日志</div><button class="modal-close" id="modalClose">关闭</button></div>
+    <div class="modal-body"><pre class="modal-pre" id="modalContent"></pre></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    var logBox = document.getElementById("log");
+    var btnRun = document.getElementById("btnRun");
+    if(btnRun){
+        btnRun.addEventListener('click', function(){
+            logBox.innerHTML = '<div class="lg-row"><i class="fa fa-spinner fa-pulse"></i><span>任务启动中，请稍候...</span></div>';
+            fetch("/run", {method:"POST"})
+            .then(function(r){ return r.text(); })
+            .then(function(txt){ logBox.innerHTML = renderLog(txt); })
+            .catch(function(e){ logBox.innerHTML = '<div class="lg-row lg-warn"><i class="fa fa-exclamation-triangle"></i><span>请求异常：' + esc(e) + '</span></div>'; });
+        });
+    }
+    var modalMask = document.getElementById('modalMask');
+    var modalClose = document.getElementById('modalClose');
+    var modalContent = document.getElementById('modalContent');
+    function openModal(text){ modalContent.innerHTML = renderLog(text); modalMask.style.display = 'flex'; }
+    function closeModal(){ modalMask.style.display = 'none'; }
+    if(modalClose){ modalClose.addEventListener('click', closeModal); }
+    if(modalMask){ modalMask.addEventListener('click', function(e){ if(e.target === modalMask) closeModal(); }); }
+    document.querySelectorAll('.btn[data-log]').forEach(function(btn){
+        btn.addEventListener('click', function(){ openModal(this.getAttribute('data-log')); });
+    });
+});
+</script>
+{% endblock %}

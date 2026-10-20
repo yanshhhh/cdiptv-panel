@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% block title %}配置中心 | CDIPTV Panel{% endblock %}
+{% block page_title %}<i class="fa fa-cog"></i> 配置中心{% endblock %}
+{% block page_desc %}在线编辑 IPTV 鉴权信息与频道分组，保存后回首页手动执行任务验证{% endblock %}
+
+{% block style %}
+.warn{color:#f87171;margin-bottom:12px;font-size:13px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.tab{padding:10px 18px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:14px;transition:.2s}
+.tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
+.pane-title{font-size:15px;font-weight:700;margin:16px 0 10px;color:var(--text);padding-bottom:6px;border-bottom:1px solid var(--border)}
+.pane-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;word-break:break-all;cursor:help;border-bottom:1px dashed rgba(var(--border-rgb),.4)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar input{flex:1;min-width:160px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:rgba(var(--card-rgb),.55);text-align:left;padding:8px 10px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);position:sticky;top:0}
+td{padding:6px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+td input{width:100%;padding:6px 8px;border-radius:8px;border:1px solid rgba(59,130,246,.40);background:rgba(59,130,246,.16);color:var(--text);font-size:12px;box-sizing:border-box}
+td select{padding:6px 8px;border-radius:8px;border:1px solid rgba(59,130,246,.40);background:rgba(59,130,246,.16);color:var(--text);font-size:12px}
+.chn-wrap{max-height:520px;overflow:auto;border:1px solid var(--border);border-radius:12px}
+.chn-name{font-weight:600;white-space:nowrap}
+.chn-count{color:var(--muted);font-size:12px;margin-top:8px}
+.order-list{list-style:none;display:flex;flex-direction:column;gap:6px}
+.order-list li{display:flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--border);border-radius:9px;background:rgba(var(--card-rgb),.55)}
+.order-list .gname{flex:1;font-weight:600;white-space:nowrap}
+.order-list .ops{display:flex;gap:6px;flex:none}
+.order-list button{padding:4px 10px;border-radius:6px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.12);color:var(--primary);cursor:pointer;font-size:12px}
+.order-list button:hover{filter:brightness(1.1)}
+.order-list .del{background:rgba(var(--danger),.12);border-color:rgba(var(--danger),.4);color:var(--danger)}
+.auto-group{display:flex;flex-direction:column;gap:8px}
+.auto-group .ag-item{display:flex;align-items:center;gap:10px}
+.auto-group .ag-item label{flex:none;width:72px;font-size:12px;color:var(--muted);word-break:break-all;margin-bottom:0}
+.auto-group .ag-item input{flex:1;width:auto;padding:8px 10px;border-radius:10px;border:1px solid rgba(59,130,246,.40);background:rgba(59,130,246,.16);color:var(--text);font-size:12px;box-sizing:border-box}
+.save-bar{display:flex;align-items:center;gap:16px;margin-top:24px}
+#saveMsg{font-size:13px}
+.msg-ok{color:#22c55e}
+.msg-err{color:#ef4444}
+.hint{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 16px}
+@media (max-width:560px){
+  .grid{grid-template-columns:1fr}
+  .auto-group .ag-item{flex-direction:column;align-items:stretch;gap:4px}
+  .auto-group .ag-item label{width:auto}
+  .order-list{max-width:100%}
+}
+{% endblock %}
+{% block body %}
+<div class="card">
+<div class="warn">⚠️ 配置保存在 config.json（docker 建议挂载 config 卷）。鼠标悬停每个选项可查看填写说明；输入框内为填写示例（示例值已脱敏，不涉及真实敏感信息）。保存后请回首页「手动执行任务」验证；鉴权参数错误会导致抓取失败。</div>
+<textarea id="cfg-json" style="display:none">{{ cfg | tojson }}</textarea>
+
+<div class="tabs">
+  <button class="tab active" data-tab="tab-server">服务器与输出</button>
+  <button class="tab" data-tab="tab-auth">鉴权参数</button>
+  <button class="tab" data-tab="tab-channels">频道分组</button>
+  <button class="tab" data-tab="tab-sort">排序与自动分类</button>
+  <button class="tab" data-tab="tab-cron">定时任务</button>
+</div>
+
+<!-- ========== 服务器与输出 ========== -->
+<div id="tab-server" class="tab-pane active">
+  <p class="hint">🔍 <strong>抓包获取：</strong>以下服务器 / 网关注释均为你的电信 IPTV 网关地址与端口，需通过<strong>抓包</strong>（抓取机顶盒或电信 IPTV APP 的登录/请求包）获取，请勿随意填写。</p>
+  <div class="pane-title"><i class="fa fa-server"></i> 服务器 / 网关</div>
+  <div class="grid">
+    <div class="field"><label>IPTVServer（鉴权网关）</label><input data-cfg="server.IPTVServer" placeholder="http://你的鉴权网关IP:端口/" title="电信 IPTV 鉴权网关根地址，须以 http(s):// 开头、斜杠结尾。改错会导致鉴权失败。"></div>
+    <div class="field"><label>PLServer（节目单服务器）</label><input data-cfg="server.PLServer" placeholder="192.168.2.2" title="EPG / 节目单服务器地址（机顶盒所在内网地址）。"></div>
+    <div class="field"><label>PLServerPort（节目单端口）</label><input data-cfg="server.PLServerPort" placeholder="8080" title="EPG / 节目单服务器端口。"></div>
+    <div class="field"><label>UdpServer（内网组播源）</label><input data-cfg="server.UdpServer" placeholder="192.168.2.2" title="内网 UDP 组播源地址，播放器在同局域网观看时使用。"></div>
+    <div class="field"><label>UdpPort（内网组播端口）</label><input data-cfg="server.UdpPort" placeholder="8888" title="内网 UDP 组播端口。"></div>
+    <div class="field"><label>HttpServer（HTTP回看代理）</label><input data-cfg="server.HttpServer" placeholder="192.168.2.2" title="内网 HTTP 回看代理地址。"></div>
+    <div class="field"><label>HttpPort（HTTP回看端口）</label><input data-cfg="server.HttpPort" placeholder="8888" title="内网 HTTP 回看端口。"></div>
+    <div class="field"><label>GATE_BASE（外网网关地址）</label><input data-cfg="server.GATE_BASE" placeholder="https://tvgate.example.com:4443" title="外网网关根地址，供外部网络（不在同一局域网）播放 M3U 时访问。填写你的域名 + 端口。"></div>
+    <div class="field"><label>UserAgent（请求标识，抓包获取）</label><input data-cfg="server.UserAgent" placeholder="Mozilla/5.0 (...)" title="抓包获取：抓取机顶盒 / APP 请求时携带的 User-Agent，一般无需改动。"></div>
+  </div>
+  <div class="pane-title"><i class="fa fa-file-archive-o"></i> 输出文件</div>
+  <div class="grid">
+    <div class="field"><label>内网 M3U（Lan_name）</label><input data-cfg="output.Lan_name" placeholder="cdiptvnw.m3u" title="内网 UDP 播放的 M3U 输出文件名（以 .m3u 结尾）。"></div>
+    <div class="field"><label>内网 HTTP 回看（LanHttp_name）</label><input data-cfg="output.LanHttp_name" placeholder="cdiptvrstpnw.m3u" title="内网 HTTP 回看 M3U 输出文件名（以 .m3u 结尾）。"></div>
+    <div class="field"><label>外网 M3U（GateLan_name）</label><input data-cfg="output.GateLan_name" placeholder="cdiptv.m3u" title="外网网关 UDP 播放 M3U 输出文件名（以 .m3u 结尾）。"></div>
+    <div class="field"><label>外网 HTTP 回看（GateLanHttp_name）</label><input data-cfg="output.GateLanHttp_name" placeholder="cdiptvrstp.m3u" title="外网网关 HTTP 回看 M3U 输出文件名（以 .m3u 结尾）。"></div>
+    <div class="field"><label>输出目录（web_path）</label><input data-cfg="output.web_path" placeholder="/app/output/" title="M3U 文件输出目录（容器内路径，建议保持默认 /app/output/）。"></div>
+    <div class="field"><label>STRM 目录（strm_path）</label><input data-cfg="output.strm_path" placeholder="/app/output/strm/" title="STRM 文件输出目录（容器内路径，末尾带斜杠）。"></div>
+  </div>
+</div>
+
+<!-- ========== 鉴权参数 ========== -->
+<div id="tab-auth" class="tab-pane">
+  <p class="hint">🔑 <strong>抓包获取：</strong>以下鉴权参数为华为机顶盒两步鉴权的真实身份值，均需通过<strong>抓包</strong>（对机顶盒 / 电信 IPTV APP 抓包）获取你自己的账号、密钥与机顶盒信息，请勿随意改动。</p>
+  <div class="pane-title"><i class="fa fa-lock"></i> 登录鉴权 authLoginHWCTC（login）</div>
+  <div class="grid">
+    <div class="field"><label>UserID（电信账号）</label><input data-cfg="auth.login.UserID" placeholder="CDxxxxxxxx@ITV" title="电信 IPTV 账号，格式通常为 CD + 数字 + @ITV。填写你自己的真实账号。"></div>
+    <div class="field"><label>VIP（预留字段）</label><input data-cfg="auth.login.VIP" placeholder="（一般留空）" title="预留字段，一般为空，无需填写。"></div>
+  </div>
+  <div class="pane-title"><i class="fa fa-key"></i> 有效鉴权 ValidAuthenticationHWCTC（valid）</div>
+  <div class="grid">
+    <div class="field"><label>UserID（电信账号）</label><input data-cfg="auth.valid.UserID" placeholder="CDxxxxxxxx@ITV" title="电信账号，与登录鉴权的 UserID 一致。"></div>
+    <div class="field"><label>Authenticator（鉴权密钥）</label><input data-cfg="auth.valid.Authenticator" placeholder="FFFFFFFFFFFFFFFF（登录返回的64位十六进制密钥示例）" title="鉴权密钥，登录鉴权流程返回的十六进制密钥（示例以 F 占位），改动会导致鉴权失败，一般无需手动修改。"></div>
+    <div class="field"><label>STBType（机顶盒型号）</label><input data-cfg="auth.valid.STBType" placeholder="EC6108V9U_ca_sccdx" title="机顶盒型号标识，固定值，请勿改动。"></div>
+    <div class="field"><label>STBVersion（软件版本标识）</label><input data-cfg="auth.valid.STBVersion" placeholder="HWVxxxxxxxxx（华为版本标识格式示例）" title="机顶盒软件版本标识，通常为 HWV 开头 + 字母数字（示例已脱敏）。"></div>
+    <div class="field"><label>conntype（连接类型）</label><input data-cfg="auth.valid.conntype" placeholder="4" title="连接类型编号，通常为 4，请勿随意改动。"></div>
+    <div class="field"><label>STBID（机顶盒序列号）</label><input data-cfg="auth.valid.STBID" placeholder="00ABCDEF1234567890ABCDEF12345678（32位序列号示例）" title="机顶盒唯一序列号 STBID（32 位十六进制，示例已脱敏），对应你的机顶盒身份，改动会导致鉴权失败。"></div>
+    <div class="field"><label>userToken（鉴权令牌）</label><input data-cfg="auth.valid.userToken" placeholder="ABCDEF0123456789ABCDEF0123456789（令牌示例）" title="鉴权令牌，登录流程返回的十六进制令牌（示例已脱敏），一般无需手动修改。"></div>
+    <div class="field"><label>userGroupId（用户分组ID）</label><input data-cfg="auth.valid.userGroupId" placeholder="1" title="用户分组 ID，通常为 1。"></div>
+    <div class="field"><label>productPackageId（产品套餐ID）</label><input data-cfg="auth.valid.productPackageId" placeholder="-1" title="产品套餐 ID，通常为 -1（默认套餐）。"></div>
+    <div class="field"><label>mac（机顶盒MAC地址）</label><input data-cfg="auth.valid.mac" placeholder="00:11:22:33:44:55" title="机顶盒 MAC 地址，英文冒号分隔。"></div>
+    <div class="field"><label>UserField（用户字段）</label><input data-cfg="auth.valid.UserField" placeholder="2" title="用户字段，通常为 2。"></div>
+    <div class="field"><label>SoftwareVersion（软件版本号）</label><input data-cfg="auth.valid.SoftwareVersion" placeholder="V000R000C00LSCD00SPC000B000（版本号格式示例）" title="机顶盒软件版本号，通常为 V/R/C/L/S/PC/B 组合（示例已脱敏）。"></div>
+    <div class="field"><label>IsSmartStb（是否智能机顶盒）</label><input data-cfg="auth.valid.IsSmartStb" placeholder="0" title="是否智能机顶盒：0 = 否，1 = 是。"></div>
+    <div class="field"><label>templateName（EPG模板名）</label><input data-cfg="auth.valid.templateName" placeholder="epg30" title="EPG 节目单模板名。"></div>
+    <div class="field"><label>areaId（区域ID）</label><input data-cfg="auth.valid.areaId" placeholder="10xxx（区域编号，填你账号所属地区）" title="区域 ID（地区编号，示例已脱敏），填写你账号所属地区。"></div>
+    <div class="field"><label>Lang（语言代码）</label><input data-cfg="auth.valid.Lang" placeholder="1" title="语言代码，通常为 1（中文）。"></div>
+    <div class="field"><label>SupportHD（高清支持）</label><input data-cfg="auth.valid.SupportHD" placeholder="1" title="是否支持高清：0 = 否，1 = 是。"></div>
+    <div class="field"><label>NetUserID（网络用户ID）</label><input data-cfg="auth.valid.NetUserID" placeholder="（一般留空）" title="网络用户 ID，一般留空。"></div>
+    <div class="field"><label>desktopId（桌面ID）</label><input data-cfg="auth.valid.desktopId" placeholder="（一般留空）" title="桌面 ID，一般留空。"></div>
+    <div class="field"><label>stbmaker（机顶盒厂商）</label><input data-cfg="auth.valid.stbmaker" placeholder="（一般留空）" title="机顶盒厂商，一般留空。"></div>
+    <div class="field"><label>XMPPCapability（XMPP能力）</label><input data-cfg="auth.valid.XMPPCapability" placeholder="（一般留空）" title="XMPP 能力标识，一般留空。"></div>
+    <div class="field"><label>ChipID（芯片ID）</label><input data-cfg="auth.valid.ChipID" placeholder="（一般留空）" title="芯片 ID，一般留空。"></div>
+  </div>
+  <div class="pane-title"><i class="fa fa-list-ul"></i> 频道列表 getchannellist（channellist）</div>
+  <div class="grid">
+    <div class="field"><label>conntype（连接类型）</label><input data-cfg="auth.channellist.conntype" placeholder="4" title="连接类型编号，与有效鉴权一致，通常为 4。"></div>
+    <div class="field"><label>UserToken（鉴权令牌）</label><input data-cfg="auth.channellist.UserToken" placeholder="ABCDEF0123456789ABCDEF0123456789（令牌示例）" title="鉴权令牌，登录流程返回的十六进制令牌（示例已脱敏）。"></div>
+    <div class="field"><label>tempKey（临时密钥）</label><input data-cfg="auth.channellist.tempKey" placeholder="ABCDEF0123456789ABCDEF0123456789（临时密钥示例）" title="临时密钥，登录流程返回的十六进制临时密钥（示例已脱敏）。"></div>
+    <div class="field"><label>stbid（机顶盒序列号）</label><input data-cfg="auth.channellist.stbid" placeholder="00ABCDEF1234567890ABCDEF12345678（序列号示例）" title="机顶盒序列号（32 位十六进制，示例已脱敏），与有效鉴权一致。"></div>
+    <div class="field"><label>SupportHD（高清支持）</label><input data-cfg="auth.channellist.SupportHD" placeholder="1" title="是否支持高清：0 = 否，1 = 是。"></div>
+    <div class="field"><label>UserID（电信账号）</label><input data-cfg="auth.channellist.UserID" placeholder="CDxxxxxxxx@ITV" title="电信账号，与登录鉴权一致。"></div>
+    <div class="field"><label>Lang（语言代码）</label><input data-cfg="auth.channellist.Lang" placeholder="1" title="语言代码，通常为 1。"></div>
+  </div>
+  <p class="hint">🔑 以上为华为机顶盒两步鉴权参数，对应你的电信账号 / 机顶盒身份。除账号信息外请勿随意修改，否则抓取会失败；示例值已脱敏，请填写你账号的真实值。</p>
+</div>
+
+<!-- ========== 频道分组 ========== -->
+<div id="tab-channels" class="tab-pane">
+  <div class="pane-title"><i class="fa fa-th-large"></i> 频道分组映射（channel_map）</div>
+  <div class="toolbar">
+    <input id="chnSearch" placeholder="🔍 搜索频道名 / tvg-name / tvg-logo..." title="输入关键词过滤频道，支持频道名 / tvg-name / tvg-logo">
+    <select id="grpFilter" title="按分组过滤频道"></select>
+  </div>
+  <div class="chn-wrap">
+    <table>
+      <thead><tr>
+        <th style="width:26%" title="电信原始频道名，不可修改">电信频道名</th>
+        <th style="width:12%" title="EPG 节目单匹配用的频道 ID，如 1、2...">tvg-id</th>
+        <th style="width:16%" title="EPG 显示用频道名，如 CCTV1">tvg-name</th>
+        <th style="width:30%" title="频道 logo 图片 URL；留空则显示频道名">tvg-logo</th>
+        <th style="width:16%" title="频道归入的分组，决定在播放器中的归类">分组</th>
+      </tr></thead>
+      <tbody id="chnBody"></tbody>
+    </table>
+  </div>
+  <div class="chn-count">共 <span id="chnCount">0</span> 个频道</div>
+  <p class="hint">改分组即可调整频道在播放器中的归类；tvg-id 用于 EPG 节目单匹配；tvg-logo 留空则显示频道名。</p>
+</div>
+
+<!-- ========== 排序与自动分类 ========== -->
+<div id="tab-sort" class="tab-pane">
+  <div class="pane-title pane-title-row"><span><i class="fa fa-sort-amount-asc"></i> 分组排序（group_order，播放器分组顺序）</span><button type="button" class="btn btn-primary btn-sm" id="btnAddGroup"><i class="fa fa-plus"></i> 新增分组</button></div>
+  <ol class="order-list" id="orderList"></ol>
+  <div class="pane-title"><i class="fa fa-tags"></i> 自动分类关键词（auto_group，未命中精确映射时按关键词归组）</div>
+  <p class="hint">每个分组一行，关键词用英文逗号分隔；频道名包含其中任一关键词即归入该分组。</p>
+  <div class="auto-group" id="autoGroup"></div>
+</div>
+
+<!-- ========== 定时任务 ========== -->
+<div id="tab-cron" class="tab-pane">
+  <div class="pane-title"><i class="fa fa-clock-o"></i> 定时任务（cron，IPTV 自动抓取周期）</div>
+  <div class="grid">
+    <div class="field"><label>crontab 表达式（分 时 日 月 周）</label><input data-cfg="cron.iptv_cron" placeholder="如 1 1 * * *（每天 01:01）" title="crontab 5 位表达式：分 时 日 月 周。例：1 1 * * * = 每天 01:01 抓取一次；1 0,12 * * * = 每天 00:01 与 12:01。"></div>
+  </div>
+  <div style="margin-top:14px;">
+    <label class="checkline" style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px" title="勾选后，容器/面板启动时立刻执行一次 IPTV 抓取">
+      <input type="checkbox" id="cronAutoStart" data-cfg="cron.auto_run_on_start" style="width:auto">
+      容器启动时立刻执行一次 IPTV 抓取
+    </label>
+  </div>
+  <p class="hint">保存后定时规则自动热加载、立即生效。示例：<code>1 0,12 * * *</code> → 每天 00:01 和 12:01 各抓取一次；<code>5 10 */7 * *</code> → 每 7 天 10:05 一次。</p>
+</div>
+
+<div class="save-bar">
+  <button class="btn btn-primary" onclick="saveConfig()"><i class="fa fa-save"></i> 保存配置</button>
+  <span id="saveMsg"></span>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+var CFG = {{ cfg | tojson }};
+
+/* ---------- 通用：填充 / 收集数据 ---------- */
+function fillFields(){
+  document.querySelectorAll('[data-cfg]').forEach(function(el){
+    var path = el.getAttribute('data-cfg').split('.');
+    var cur = CFG;
+    for(var i=0;i<path.length;i++){ if(cur==null) break; cur = cur[path[i]]; }
+    if(el.type==='checkbox'){ el.checked = !!cur; }
+    else { el.value = (cur==null?'':cur); }
+  });
+}
+function collectData(){
+  var data = { server:{}, output:{}, auth:{login:{},valid:{},channellist:{}}, channel_map:{}, auto_group:{}, group_order:[], cron:{} };
+  document.querySelectorAll('[data-cfg]').forEach(function(el){
+    var path = el.getAttribute('data-cfg').split('.');
+    var target;
+    if(path[0]==='server') target = data.server;
+    else if(path[0]==='output') target = data.output;
+    else if(path[0]==='auth') target = data.auth[path[1]];
+    else if(path[0]==='cron') target = data.cron;
+    target[path[path.length-1]] = (el.type==='checkbox') ? el.checked : el.value;
+  });
+  // channel_map
+  document.querySelectorAll('#chnBody tr').forEach(function(tr){
+    var name = tr.getAttribute('data-name');
+    if(!name) return;
+    data.channel_map[name] = [
+      tr.querySelector('.c-id').value,
+      tr.querySelector('.c-name').value,
+      tr.querySelector('.c-logo').value,
+      tr.querySelector('.c-group').value
+    ];
+  });
+  // group_order
+  data.group_order = Array.prototype.map.call(document.querySelectorAll('#orderList li'), function(li){ return li.getAttribute('data-g'); });
+  // auto_group
+  document.querySelectorAll('.ag-item input').forEach(function(inp){
+    data.auto_group[inp.getAttribute('data-group')] = inp.value.split(/[,，]/).map(function(s){return s.trim();}).filter(function(s){return s!=='';});
+  });
+  return data;
+}
+
+/* ---------- Tab 切换 ---------- */
+document.querySelectorAll('.tab').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(b){b.classList.remove('active');});
+    document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
+    btn.classList.add('active');
+    document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+  });
+});
+
+/* ---------- 频道分组表格 ---------- */
+function renderChannels(){
+  var groups = CFG.group_order || [];
+  var grpSel = document.getElementById('grpFilter');
+  grpSel.innerHTML = '<option value="">全部分组</option>';
+  groups.forEach(function(g){ grpSel.insertAdjacentHTML('beforeend','<option value="'+g+'">'+g+'</option>'); });
+  var tbody = document.getElementById('chnBody');
+  tbody.innerHTML = '';
+  Object.keys(CFG.channel_map || {}).forEach(function(name){
+    var v = CFG.channel_map[name];
+    var opts = groups.map(function(g){ return '<option '+(g===v[3]?'selected':'')+'>'+g+'</option>'; }).join('');
+    tbody.insertAdjacentHTML('beforeend',
+      '<tr data-name="'+name.replace(/"/g,'&quot;')+'">'
+      +'<td class="chn-name">'+name+'</td>'
+      +'<td><input class="c-id" value="'+String(v[0]||'').replace(/"/g,'&quot;')+'" placeholder="如 1" title="EPG 节目单匹配的频道 ID"></td>'
+      +'<td><input class="c-name" value="'+String(v[1]||'').replace(/"/g,'&quot;')+'" placeholder="如 CCTV1" title="EPG 显示的频道名"></td>'
+      +'<td><input class="c-logo" value="'+String(v[2]||'').replace(/"/g,'&quot;')+'" placeholder="logo 图片 URL（可留空）" title="频道 logo 图片地址；留空则显示频道名"></td>'
+      +'<td><select class="c-group" title="频道归入的分组">'+opts+'</select></td>'
+      +'</tr>');
+  });
+  updateChnCount();
+}
+function updateChnCount(){
+  document.getElementById('chnCount').textContent = document.querySelectorAll('#chnBody tr').length;
+}
+document.getElementById('chnSearch').addEventListener('input', filterRows);
+document.getElementById('grpFilter').addEventListener('change', filterRows);
+function filterRows(){
+  var q = document.getElementById('chnSearch').value.toLowerCase();
+  var g = document.getElementById('grpFilter').value;
+  var count = 0;
+  document.querySelectorAll('#chnBody tr').forEach(function(tr){
+    var txt = tr.textContent.toLowerCase();
+    var grp = tr.querySelector('.c-group').value;
+    var show = (g==='' || grp===g) && (q==='' || txt.indexOf(q)>=0);
+    tr.style.display = show ? '' : 'none';
+    if(show) count++;
+  });
+  document.getElementById('chnCount').textContent = count;
+}
+
+/* ---------- 分组排序（新增 / 删除 / 上移 / 下移） ---------- */
+function renderOrder(){
+  var ol = document.getElementById('orderList');
+  ol.innerHTML = '';
+  (CFG.group_order || []).forEach(function(g){
+    var li = document.createElement('li');
+    li.setAttribute('data-g', g);
+    li.innerHTML = '<span class="gname">'+g+'</span>'
+      +'<span class="ops">'
+      +'<button type="button" class="up" title="上移">↑</button>'
+      +'<button type="button" class="down" title="下移">↓</button>'
+      +'<button type="button" class="del" title="删除该分组">✕</button>'
+      +'</span>';
+    li.querySelector('.up').addEventListener('click', function(){ moveOrder(li, -1); });
+    li.querySelector('.down').addEventListener('click', function(){ moveOrder(li, 1); });
+    li.querySelector('.del').addEventListener('click', function(){
+      if(!confirm("确定删除分组「"+g+"」？其自动分类关键词将一并移除。")) return;
+      var idx = CFG.group_order.indexOf(g);
+      if(idx>=0) CFG.group_order.splice(idx,1);
+      delete CFG.auto_group[g];
+      renderOrder();
+      renderAutoGroup();
+      renderChannels();
+    });
+    ol.appendChild(li);
+  });
+}
+function bindAddGroup(){
+  var btn = document.getElementById('btnAddGroup');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    var name = prompt("请输入新分组名称：", "");
+    name = (name||'').trim();
+    if(!name) return;
+    if(CFG.group_order.indexOf(name)>=0){ alert("分组「"+name+"」已存在，请换一个名称"); return; }
+    CFG.group_order.push(name);
+    CFG.auto_group[name] = [];
+    renderOrder();
+    renderAutoGroup();
+    renderChannels();
+  });
+}
+bindAddGroup();
+function moveOrder(li, dir){
+  var ol = document.getElementById('orderList');
+  var list = Array.prototype.slice.call(ol.children);
+  var i = list.indexOf(li);
+  var j = i + dir;
+  if(j<0 || j>=list.length) return;
+  if(dir<0) ol.insertBefore(li, list[j]); else ol.insertBefore(list[j], li);
+}
+
+/* ---------- 自动分类关键词 ---------- */
+function renderAutoGroup(){
+  var box = document.getElementById('autoGroup');
+  box.innerHTML = '';
+  Object.keys(CFG.auto_group || {}).forEach(function(g){
+    box.insertAdjacentHTML('beforeend',
+      '<div class="ag-item"><label title="频道名包含下列任一关键词即归入「'+g+'」分组">'+g+'</label>'
+      +'<input data-group="'+g+'" value="'+((CFG.auto_group[g]||[]).join(',')).replace(/"/g,'&quot;')+'" '
+      +'placeholder="关键词，逗号分隔（如 少儿,卡通,动画）" '
+      +'title="频道名包含其中任一关键词即归入该分组；多个关键词用英文逗号分隔。"></div>');
+  });
+}
+
+/* ---------- 保存 ---------- */
+function saveConfig(){
+  var data = collectData();
+  var msg = document.getElementById('saveMsg');
+  msg.className = ''; msg.textContent = '保存中...';
+  fetch('/editor', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  }).then(function(r){ return r.json(); }).then(function(res){
+    msg.className = res.ok ? 'msg-ok' : 'msg-err';
+    msg.textContent = res.msg || (res.ok ? '已保存' : '保存失败');
+  }).catch(function(e){
+    msg.className = 'msg-err';
+    msg.textContent = '❌请求失败：'+e;
+  });
+}
+
+fillFields(); renderChannels(); renderOrder(); renderAutoGroup();
+</script>
+{% endblock %}

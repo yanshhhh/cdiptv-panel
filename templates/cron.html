@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}定时任务配置 | CDIPTV Panel{% endblock %}
+{% block page_title %}<i class="fa fa-clock-o"></i> 定时任务配置{% endblock %}
+{% block page_desc %}设置 IPTV 抓取的执行周期，保存后自动热加载、立即生效，无需重启容器{% endblock %}
+
+{% block style %}
+.form-item{margin-bottom:20px}
+label{display:block;margin-bottom:8px}
+.checkline{display:flex;align-items:center;gap:8px}
+.checkline input{width:auto}
+.tip{color:var(--muted);font-size:13px;margin-top:8px;line-height:1.5}
+.msg-ok{color:#22c55e}
+.msg-err{color:#ef4444}
+{% endblock %}
+{% block body %}
+<div class="card">
+<form method="POST" action="/cron">
+<div class="form-item">
+<label>IPTV抓取 crontab表达式（5位：分 时 日 月 周）</label>
+<input name="iptv_cron" value="{{ cron_val }}" placeholder="如 1 1 * * *（每天 01:01）" title="crontab 5 位表达式：分 时 日 月 周。例：1 1 * * * = 每天 01:01；1 0,12 * * * = 每天 00:01 与 12:01；5 10 */7 * * = 每 7 天 10:05 一次。">
+<div class="tip">示例：<code>1 1 * * *</code> → 每天 01:01 抓取一次；<code>1 0,12 * * *</code> → 每天 00:01 与 12:01；<code>5 10 */7 * *</code> → 每 7 天 10:05 一次。</div>
+</div>
+<div class="form-item">
+<label class="checkline" title="勾选后，容器/面板启动时立刻执行一次 IPTV 抓取">
+<input type="checkbox" name="auto_run_on_start" {% if auto_check %}checked{% endif %}>
+容器启动时立刻执行一次iptv抓取
+</label>
+</div>
+<div class="form-item">
+<button type="submit" class="btn btn-primary"><i class="fa fa-save"></i> 保存配置</button>
+</div>
+{% if msg %}
+<div class="form-item {{ msgcls }}">{{ msg }}</div>
+{% endif %}
+</form>
+</div>
+<div class="card">
+<div class="tip">
+1. 标准Linux 5位crontab语法：分 时 日 月 周<br>
+2. ✨保存配置自动热加载，无需重启容器立即生效<br>
+3. 查看后台定时任务日志命令：<code>docker compose logs -f cdiptv-panel</code><br>
+4. 配置统一持久化在 config/config.json（cron 区），网页保存即生效
+</div>
+</div>
+{% endblock %}

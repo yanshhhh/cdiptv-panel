@@ -1,0 +1,16 @@
+# ============ 敏感配置与运行数据（切勿提交，含真实鉴权凭据） ============
+# config.json 含真实电信账号/机顶盒身份（Authenticator/STBID/userToken 等），
+# 一旦提交等于公开，务必保持忽略。首次运行会按内置默认自动生成。
+config/config.json
+config/task_run_log.json
+config/cron_config.json
+
+# 运行产物（生成的 M3U）
+output/
+
+# Python / 备份 / 环境 / 压缩包
+__pycache__/
+*.pyc
+*.bak
+.env
+*.zip
